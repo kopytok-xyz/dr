@@ -6,16 +6,18 @@
  * Проверка минимальной длины текстового поля
  */
 const validateLength = (input: HTMLInputElement, minLength: number): boolean => {
-  return input.value.trim().length >= minLength;
+  return input.value.trim().length > minLength;
 };
 
 /**
  * Проверка формата телефона (базовая проверка)
  */
 const validatePhone = (input: HTMLInputElement): boolean => {
-  // Базовая проверка на цифры и минимальную длину
-  const phoneRegex = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/;
-  return phoneRegex.test(input.value.trim());
+  // Удаляем все нецифровые символы для проверки (пробелы, дефисы, скобки, точки)
+  const phoneDigits = input.value.replace(/\D/g, '');
+
+  // Проверяем количество цифр (минимум 10, максимум 15 для международных)
+  return phoneDigits.length >= 10 && phoneDigits.length <= 15;
 };
 
 /**
@@ -74,7 +76,7 @@ const hideError = (wrapper: Element, input: HTMLElement): void => {
 /**
  * Валидация одного инпута
  */
-const validateInput = (wrapper: Element, showErrors = true): boolean => {
+const validateInput = (wrapper: Element, showErrors = true, forceShowErrors = false): boolean => {
   const input = wrapper.querySelector('input, textarea') as HTMLInputElement;
   const checkbox = wrapper.querySelector('.w-checkbox-input') as HTMLElement;
   let isValid = true;
@@ -102,7 +104,12 @@ const validateInput = (wrapper: Element, showErrors = true): boolean => {
     isValid = validateCheckbox(input);
 
     // Для чекбокса применяем класс к элементу .w-checkbox-input
-    if (showErrors && !isValid && checkbox) {
+    if (
+      showErrors &&
+      (input.hasAttribute('data-touched') || forceShowErrors) &&
+      !isValid &&
+      checkbox
+    ) {
       checkbox.classList.add('is-error');
     } else if (checkbox) {
       checkbox.classList.remove('is-error');
@@ -110,7 +117,8 @@ const validateInput = (wrapper: Element, showErrors = true): boolean => {
   }
 
   // Показать или скрыть ошибку только если требуется
-  if (showErrors) {
+  // и пользователь взаимодействовал с этим инпутом или требуется показ для всех
+  if (showErrors && (input.hasAttribute('data-touched') || forceShowErrors)) {
     if (!isValid) {
       if (input.type === 'checkbox') {
         showError(wrapper, checkbox || input);
@@ -132,13 +140,17 @@ const validateInput = (wrapper: Element, showErrors = true): boolean => {
 /**
  * Валидация всей формы
  */
-const validateForm = (form: HTMLFormElement, showErrors = true): boolean => {
+const validateForm = (
+  form: HTMLFormElement,
+  showErrors = true,
+  forceShowErrors = false
+): boolean => {
   const inputWrappers = form.querySelectorAll('.input-wrapper');
   let isFormValid = true;
 
   // Валидируем каждый инпут
   inputWrappers.forEach((wrapper) => {
-    const inputValid = validateInput(wrapper, showErrors);
+    const inputValid = validateInput(wrapper, showErrors, forceShowErrors);
     if (!inputValid) {
       isFormValid = false;
     }
@@ -191,6 +203,12 @@ export const validateForms = (): void => {
       const input = wrapper.querySelector('input, textarea') as HTMLInputElement;
       if (!input) return;
 
+      // Добавляем обработчики для отслеживания взаимодействия с полем
+      input.addEventListener('focus', () => {
+        // Помечаем инпут как взаимодействованный
+        input.setAttribute('data-touched', 'true');
+      });
+
       // Валидация при вводе и потере фокуса
       input.addEventListener('input', () => {
         validateInput(wrapper, true);
@@ -205,7 +223,7 @@ export const validateForms = (): void => {
 
     // Блокируем отправку формы, если есть ошибки
     form.addEventListener('submit', (e) => {
-      const isValid = validateForm(form, true);
+      const isValid = validateForm(form, true, true); // Показываем все ошибки при отправке
       if (!isValid) {
         e.preventDefault();
         e.stopPropagation();
