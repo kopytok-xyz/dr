@@ -1,7 +1,6 @@
-import { greetUser } from '$utils/greet';
+import { validateForms } from '$utils/validateForm';
 
 window.Webflow ||= [];
 window.Webflow.push(() => {
-  const name = 'John Doe';
-  greetUser(name);
+  validateForms();
 });
