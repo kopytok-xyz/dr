@@ -209,11 +209,22 @@ export const validateForms = (): void => {
         input.setAttribute('data-touched', 'true');
       });
 
-      // Валидация при вводе и потере фокуса
-      input.addEventListener('input', () => {
-        validateInput(wrapper, true);
-        validateForm(form, true);
-      });
+      // Ограничиваем ввод только цифрами и некоторыми специальными символами для телефонных номеров
+      if (input.hasAttribute('input-validation-phone')) {
+        input.addEventListener('input', (e) => {
+          const target = e.target as HTMLInputElement;
+          // Разрешаем только цифры, плюс, скобки, дефисы, пробелы и точки
+          target.value = target.value.replace(/[^\d+\-()\s.]/g, '');
+          validateInput(wrapper, true);
+          validateForm(form, true);
+        });
+      } else {
+        // Валидация при вводе и потере фокуса для остальных полей
+        input.addEventListener('input', () => {
+          validateInput(wrapper, true);
+          validateForm(form, true);
+        });
+      }
 
       input.addEventListener('blur', () => {
         validateInput(wrapper, true);
