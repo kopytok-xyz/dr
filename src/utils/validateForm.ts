@@ -16,8 +16,8 @@ const validatePhone = (input: HTMLInputElement): boolean => {
   // Удаляем все нецифровые символы для проверки (пробелы, дефисы, скобки, точки)
   const phoneDigits = input.value.replace(/\D/g, '');
 
-  // Проверяем только минимальное количество цифр (минимум 10)
-  return phoneDigits.length >= 10;
+  // Проверяем только минимальное количество цифр (минимум 5)
+  return phoneDigits.length >= 5;
 };
 
 /**
