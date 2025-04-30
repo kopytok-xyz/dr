@@ -33,7 +33,10 @@ const validateEmail = (input: HTMLInputElement): boolean => {
  * Проверка чекбокса
  */
 const validateCheckbox = (input: HTMLInputElement): boolean => {
-  return input.checked;
+  const isValid = input.checked;
+  // Добавляем атрибут, отражающий состояние чекбокса
+  input.setAttribute('data-checked', isValid.toString());
+  return isValid;
 };
 
 /**
