@@ -30,12 +30,46 @@ const validateEmail = (input: HTMLInputElement): boolean => {
 };
 
 /**
+ * Управление классами чекбокса
+ */
+const updateCheckboxClasses = (input: HTMLInputElement, checkbox: HTMLElement): void => {
+  const isChecked = input.getAttribute('data-checked') === 'true';
+  console.log('updateCheckboxClasses:', {
+    isChecked,
+    checkboxClasses: checkbox.classList.toString(),
+    inputDataChecked: input.getAttribute('data-checked'),
+  });
+
+  if (isChecked) {
+    checkbox.classList.add('w--redirected-checked');
+  } else {
+    checkbox.classList.remove('w--redirected-checked');
+  }
+
+  console.log('After update:', {
+    checkboxClasses: checkbox.classList.toString(),
+  });
+};
+
+/**
  * Проверка чекбокса
  */
 const validateCheckbox = (input: HTMLInputElement): boolean => {
   const isValid = input.checked;
+  console.log('validateCheckbox:', {
+    checked: input.checked,
+    dataChecked: input.getAttribute('data-checked'),
+  });
+
   // Добавляем атрибут, отражающий состояние чекбокса
   input.setAttribute('data-checked', isValid.toString());
+
+  // Обновляем классы чекбокса
+  const checkbox = input.closest('.input-wrapper')?.querySelector('.w-checkbox-input');
+  if (checkbox) {
+    updateCheckboxClasses(input, checkbox as HTMLElement);
+  }
+
   return isValid;
 };
 
@@ -43,8 +77,17 @@ const validateCheckbox = (input: HTMLInputElement): boolean => {
  * Показать сообщение об ошибке для конкретного инпута
  */
 const showError = (wrapper: Element, input: HTMLElement): void => {
-  // Добавляем класс is-error для инпута
-  input.classList.add('is-error');
+  // Для чекбокса ищем специальный элемент
+  const isCheckbox = wrapper.querySelector('input[type="checkbox"]');
+  if (isCheckbox) {
+    const checkbox = wrapper.querySelector('.w-checkbox-input.checkbox') as HTMLElement;
+    if (checkbox) {
+      checkbox.classList.add('is-error');
+    }
+  } else {
+    // Добавляем класс is-error для инпута
+    input.classList.add('is-error');
+  }
 
   // Находим блок с ошибкой и показываем его
   const errorLabel = wrapper.querySelector('.input-error-label');
@@ -66,8 +109,17 @@ const showError = (wrapper: Element, input: HTMLElement): void => {
  * Скрыть сообщение об ошибке для конкретного инпута
  */
 const hideError = (wrapper: Element, input: HTMLElement): void => {
-  // Удаляем класс is-error для инпута
-  input.classList.remove('is-error');
+  // Для чекбокса ищем специальный элемент
+  const isCheckbox = wrapper.querySelector('input[type="checkbox"]');
+  if (isCheckbox) {
+    const checkbox = wrapper.querySelector('.w-checkbox-input.checkbox') as HTMLElement;
+    if (checkbox) {
+      checkbox.classList.remove('is-error');
+    }
+  } else {
+    // Удаляем класс is-error для инпута
+    input.classList.remove('is-error');
+  }
 
   // Находим блок с ошибкой и скрываем его
   const errorLabel = wrapper.querySelector('.input-error-label');
@@ -81,7 +133,7 @@ const hideError = (wrapper: Element, input: HTMLElement): void => {
  */
 const validateInput = (wrapper: Element, showErrors = true, forceShowErrors = false): boolean => {
   const input = wrapper.querySelector('input, textarea') as HTMLInputElement;
-  const checkbox = wrapper.querySelector('.w-checkbox-input') as HTMLElement;
+  const checkbox = wrapper.querySelector('.w-checkbox-input.checkbox') as HTMLElement;
   let isValid = true;
 
   if (!input) return true;
@@ -106,34 +158,24 @@ const validateInput = (wrapper: Element, showErrors = true, forceShowErrors = fa
   if (input.hasAttribute('input-validation-checkbox')) {
     isValid = validateCheckbox(input);
 
-    // Для чекбокса применяем класс к элементу .w-checkbox-input
-    if (
-      showErrors &&
-      (input.hasAttribute('data-touched') || forceShowErrors) &&
-      !isValid &&
-      checkbox
-    ) {
-      checkbox.classList.add('is-error');
-    } else if (checkbox) {
-      checkbox.classList.remove('is-error');
+    // Показываем или скрываем ошибку для чекбокса
+    if (showErrors && (input.hasAttribute('data-touched') || forceShowErrors)) {
+      if (!isValid) {
+        showError(wrapper, checkbox || input);
+      } else {
+        hideError(wrapper, checkbox || input);
+      }
     }
+    return isValid;
   }
 
   // Показать или скрыть ошибку только если требуется
   // и пользователь взаимодействовал с этим инпутом или требуется показ для всех
   if (showErrors && (input.hasAttribute('data-touched') || forceShowErrors)) {
     if (!isValid) {
-      if (input.type === 'checkbox') {
-        showError(wrapper, checkbox || input);
-      } else {
-        showError(wrapper, input);
-      }
+      showError(wrapper, input);
     } else {
-      if (input.type === 'checkbox') {
-        hideError(wrapper, checkbox || input);
-      } else {
-        hideError(wrapper, input);
-      }
+      hideError(wrapper, input);
     }
   }
 
@@ -206,33 +248,62 @@ export const validateForms = (): void => {
       const input = wrapper.querySelector('input, textarea') as HTMLInputElement;
       if (!input) return;
 
-      // Добавляем обработчики для отслеживания взаимодействия с полем
-      input.addEventListener('focus', () => {
-        // Помечаем инпут как взаимодействованный
-        input.setAttribute('data-touched', 'true');
-      });
+      // Специальная обработка для чекбоксов
+      if (input.hasAttribute('input-validation-checkbox')) {
+        const checkboxLabel = wrapper.querySelector('.w-checkbox') as HTMLElement;
+        if (checkboxLabel) {
+          checkboxLabel.addEventListener('click', () => {
+            // Небольшая задержка, чтобы дать Webflow обновить состояние
+            setTimeout(() => {
+              validateInput(wrapper, true);
+              validateForm(form, true);
+            }, 0);
+          });
+        }
 
-      // Ограничиваем ввод только цифрами и некоторыми специальными символами для телефонных номеров
-      if (input.hasAttribute('input-validation-phone')) {
-        input.addEventListener('input', (e) => {
-          const target = e.target as HTMLInputElement;
-          // Разрешаем только цифры, плюс, скобки, дефисы, пробелы и точки
-          target.value = target.value.replace(/[^\d+\-()\s.]/g, '');
+        // Инициализация состояния чекбокса при загрузке
+        if (input.checked) {
+          input.setAttribute('data-checked', 'true');
+          const checkbox = wrapper.querySelector('.w-checkbox-input') as HTMLElement;
+          if (checkbox) {
+            checkbox.classList.add('w--redirected-checked');
+          }
+        }
+
+        // Добавляем обработчик изменений для самого инпута (на случай программного изменения)
+        input.addEventListener('change', () => {
           validateInput(wrapper, true);
           validateForm(form, true);
         });
       } else {
-        // Валидация при вводе и потере фокуса для остальных полей
-        input.addEventListener('input', () => {
+        // Добавляем обработчики для отслеживания взаимодействия с полем
+        input.addEventListener('focus', () => {
+          // Помечаем инпут как взаимодействованный
+          input.setAttribute('data-touched', 'true');
+        });
+
+        // Ограничиваем ввод только цифрами и некоторыми специальными символами для телефонных номеров
+        if (input.hasAttribute('input-validation-phone')) {
+          input.addEventListener('input', (e) => {
+            const target = e.target as HTMLInputElement;
+            // Разрешаем только цифры, плюс, скобки, дефисы, пробелы и точки
+            target.value = target.value.replace(/[^\d+\-()\s.]/g, '');
+            validateInput(wrapper, true);
+            validateForm(form, true);
+          });
+        } else {
+          // Валидация при вводе и потере фокуса для остальных полей
+          input.addEventListener('input', () => {
+            validateInput(wrapper, true);
+            validateForm(form, true);
+          });
+        }
+
+        input.addEventListener('blur', () => {
           validateInput(wrapper, true);
           validateForm(form, true);
         });
       }
-
-      input.addEventListener('blur', () => {
-        validateInput(wrapper, true);
-        validateForm(form, true);
-      });
     });
 
     // Блокируем отправку формы, если есть ошибки
